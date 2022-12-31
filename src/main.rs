@@ -37,13 +37,13 @@ async fn main() -> anyhow::Result<()> {
                 let ps_info = sys
                     .process(Pid::from(child.id() as usize))
                     .expect("process not spawned correctly");
-                println!("child mem: {}", ByteSize(ps_info.memory()));
-
-                let ps_info = sys
-                    .process(Pid::from(std::process::id() as usize))
-                    .expect("process not spawned correctly");
                 // TODO fix what is output
                 println!("mem: {}", ByteSize(ps_info.memory()));
+                println!("CPU: {}", ps_info.cpu_usage());
+                let disk_usage = ps_info.disk_usage();
+                println!("Bytes read: {}", ByteSize(disk_usage.total_read_bytes));
+                println!("Bytes written: {}", ByteSize(disk_usage.total_written_bytes));
+				println!();
 
                 // for (interface_name, data) in sys.networks() {
                 //     println!(
