@@ -106,20 +106,7 @@ impl Drop for ShadowTerminal {
     }
 }
 
-fn terminal_ui<B: Backend>(f: &mut Frame<B>, sys_info: &SysInfo) {
-    let size = f.size();
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints(
-            [
-                Constraint::Ratio(1, 3),
-                Constraint::Ratio(1, 3),
-                Constraint::Ratio(1, 3),
-            ]
-            .as_ref(),
-        )
-        .split(size);
-
+fn cpu_graph(sys_info: &SysInfo) -> Chart<'_> {
     let time_min = 0f64;
     let time_max = sys_info
         .cpu_data
@@ -158,7 +145,7 @@ fn terminal_ui<B: Backend>(f: &mut Frame<B>, sys_info: &SysInfo) {
         .data(&sys_info.cpu_data)];
 
     // CPU chart.
-    let chart = Chart::new(datasets)
+    Chart::new(datasets)
         .block(
             Block::default()
                 .title(Span::styled(
@@ -182,8 +169,23 @@ fn terminal_ui<B: Backend>(f: &mut Frame<B>, sys_info: &SysInfo) {
                 .style(Style::default().fg(Color::Gray))
                 .labels(y_labels)
                 .bounds([cpu_min, cpu_max]),
-        );
-    f.render_widget(chart, chunks[0]);
+        )
+}
+
+fn terminal_ui<B: Backend>(f: &mut Frame<B>, sys_info: &SysInfo) {
+    let size = f.size();
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(
+            [
+                Constraint::Ratio(1, 3),
+                Constraint::Ratio(1, 3),
+                Constraint::Ratio(1, 3),
+            ]
+            .as_ref(),
+        )
+        .split(size);
+    f.render_widget(cpu_graph(sys_info), chunks[0]);
 
     // TODO are currently two other chunks allocated
 }
