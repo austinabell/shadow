@@ -217,6 +217,15 @@ async fn main() -> anyhow::Result<()> {
     loop {
         tokio::select! {
             _ = interval_timer.tick() => {
+                // polling for interrupt only on interval isn't ideal. Library is restrictive and
+                // I'm lazy :)
+                while crossterm::event::poll(Duration::from_millis(0))? {
+                    if let crossterm::event::Event::Key(key) = crossterm::event::read()? {
+                        if let crossterm::event::KeyCode::Char('q') = key.code {
+                            return Ok(());
+                        }
+                    }
+                }
                 terminal.update_data()?;
             }
             status = child.status() => {
