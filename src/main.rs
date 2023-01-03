@@ -144,7 +144,6 @@ fn cpu_graph(sys_info: &SysInfo) -> Chart<'_> {
         .style(Style::default().fg(Color::Cyan))
         .data(&sys_info.cpu_data)];
 
-    // CPU chart.
     Chart::new(datasets)
         .block(
             Block::default()
@@ -172,6 +171,71 @@ fn cpu_graph(sys_info: &SysInfo) -> Chart<'_> {
         )
 }
 
+fn memory_graph(sys_info: &SysInfo) -> Chart<'_> {
+    let time_min = 0f64;
+    let time_max = sys_info
+        .cpu_data
+        .last()
+        .map(|(elapsed, _)| *elapsed)
+        .unwrap_or_default();
+    let x_labels = vec![
+        Span::styled(
+            format!("{} s", time_min),
+            Style::default().add_modifier(Modifier::BOLD),
+        ),
+        Span::raw(format!("{} s", (time_min + time_max) / 2.0)),
+        Span::styled(
+            format!("{} s", time_max),
+            Style::default().add_modifier(Modifier::BOLD),
+        ),
+    ];
+
+    let memory_min = 0;
+    let memory_max = sys_info.total_memory;
+    let y_labels = vec![
+        Span::styled(
+            format!("{}", ByteSize(memory_min)),
+            Style::default().add_modifier(Modifier::BOLD),
+        ),
+        Span::raw(format!("{}", ByteSize((memory_min + memory_max) / 2))),
+        Span::styled(
+            format!("{}", ByteSize(memory_max)),
+            Style::default().add_modifier(Modifier::BOLD),
+        ),
+    ];
+    let datasets = vec![Dataset::default()
+        .name("Memory usage")
+        .marker(symbols::Marker::Dot)
+        .style(Style::default().fg(Color::Cyan))
+        .data(&sys_info.cpu_data)];
+
+    Chart::new(datasets)
+        .block(
+            Block::default()
+                .title(Span::styled(
+                    "Memory",
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ))
+                .borders(Borders::ALL),
+        )
+        .x_axis(
+            Axis::default()
+                .title("Time elapsed")
+                .style(Style::default().fg(Color::Gray))
+                .labels(x_labels)
+                .bounds([time_min, time_max]),
+        )
+        .y_axis(
+            Axis::default()
+                .title("")
+                .style(Style::default().fg(Color::Gray))
+                .labels(y_labels)
+                .bounds([memory_min as f64, memory_max as f64]),
+        )
+}
+
 fn terminal_ui<B: Backend>(f: &mut Frame<B>, sys_info: &SysInfo) {
     let size = f.size();
     let chunks = Layout::default()
@@ -186,6 +250,7 @@ fn terminal_ui<B: Backend>(f: &mut Frame<B>, sys_info: &SysInfo) {
         )
         .split(size);
     f.render_widget(cpu_graph(sys_info), chunks[0]);
+    f.render_widget(memory_graph(sys_info), chunks[1]);
 
     // TODO are currently two other chunks allocated
 }
