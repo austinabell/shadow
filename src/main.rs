@@ -14,11 +14,11 @@ use sysinfo::{Pid, ProcessExt, System, SystemExt};
 use tokio::time::Instant;
 use tui::{
     backend::{Backend, CrosstermBackend},
-    layout::{Constraint, Direction, Layout},
+    layout::{Alignment, Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     symbols,
     text::Span,
-    widgets::{Axis, Block, Borders, Chart, Dataset},
+    widgets::{Axis, Block, Borders, Chart, Dataset, Paragraph, Wrap},
     Frame, Terminal,
 };
 
@@ -30,6 +30,8 @@ struct SysInfo {
     total_memory: u64,
     num_cpus: usize,
     cpu_data: Vec<(f64, f64)>,
+    std_out: String,
+    std_err: String,
 }
 
 struct ShadowTerminal {
@@ -58,6 +60,8 @@ impl ShadowTerminal {
                 total_memory,
                 num_cpus,
                 cpu_data: Vec::new(),
+                std_out: String::new(),
+                std_err: String::new(),
             },
         })
     }
@@ -236,6 +240,22 @@ fn memory_graph(sys_info: &SysInfo) -> Chart<'_> {
         )
 }
 
+fn stdout_ui(sys_info: &SysInfo) -> Paragraph<'_> {
+    Paragraph::new(sys_info.std_out.as_str())
+        .block(
+            Block::default()
+                .title(Span::styled(
+                    "stdout",
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ))
+                .borders(Borders::ALL),
+        )
+        .alignment(Alignment::Center)
+        .wrap(Wrap { trim: false })
+}
+
 fn terminal_ui<B: Backend>(f: &mut Frame<B>, sys_info: &SysInfo) {
     let size = f.size();
     let chunks = Layout::default()
@@ -256,6 +276,12 @@ fn terminal_ui<B: Backend>(f: &mut Frame<B>, sys_info: &SysInfo) {
         .split(chunks[1]);
     f.render_widget(cpu_graph(sys_info), graphs_chunk[0]);
     f.render_widget(memory_graph(sys_info), graphs_chunk[1]);
+
+    let std_chunk = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)].as_ref())
+        .split(chunks[2]);
+    f.render_widget(stdout_ui(sys_info), std_chunk[0]);
 
     // TODO are currently two other chunks allocated
 }
