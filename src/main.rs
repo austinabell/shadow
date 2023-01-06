@@ -14,7 +14,7 @@ use sysinfo::{Pid, ProcessExt, System, SystemExt};
 use tokio::time::Instant;
 use tui::{
     backend::{Backend, CrosstermBackend},
-    layout::{Alignment, Constraint, Direction, Layout},
+    layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     symbols,
     text::Span,
@@ -91,8 +91,25 @@ impl ShadowTerminal {
         // );
         // println!();
 
-        self.terminal.draw(|f| terminal_ui(f, &self.sys_info))?;
+        self.draw_ui()
+    }
 
+    fn push_stdout(&mut self, stdout: String) -> anyhow::Result<()> {
+        self.sys_info
+            .stdout
+            .push_str(&[stdout.as_str(), "\n"].concat());
+        self.draw_ui()
+    }
+
+    fn push_stderr(&mut self, stderr: String) -> anyhow::Result<()> {
+        self.sys_info
+            .stderr
+            .push_str(&[stderr.as_str(), "\n"].concat());
+        self.draw_ui()
+    }
+
+    fn draw_ui(&mut self) -> anyhow::Result<()> {
+        self.terminal.draw(|f| terminal_ui(f, &self.sys_info))?;
         Ok(())
     }
 }
@@ -252,7 +269,6 @@ fn stdout_ui(sys_info: &SysInfo) -> Paragraph<'_> {
                 ))
                 .borders(Borders::ALL),
         )
-        .alignment(Alignment::Center)
         .wrap(Wrap { trim: false })
 }
 
@@ -268,7 +284,6 @@ fn stderr_ui(sys_info: &SysInfo) -> Paragraph<'_> {
                 ))
                 .borders(Borders::ALL),
         )
-        .alignment(Alignment::Center)
         .wrap(Wrap { trim: false })
 }
 
@@ -348,18 +363,18 @@ async fn main() -> anyhow::Result<()> {
                 break;
             },
             // TODO swap these to show in better way than just forwarding
-            Some(line) = std_out.next() => println!("{}", line?),
-            Some(line) = std_err.next() => eprintln!("{}", line?),
+            Some(line) = std_out.next() => terminal.push_stdout(line?)?,
+            Some(line) = std_err.next() => terminal.push_stderr(line?)?,
         }
     }
 
     // Flush remaining output and give summary
     // TODO incomplete
     while let Some(line) = std_out.next().await {
-        println!("{}", line?);
+        terminal.push_stdout(line?)?;
     }
     while let Some(line) = std_err.next().await {
-        eprintln!("{}", line?);
+        terminal.push_stderr(line?)?;
     }
 
     Ok(())
