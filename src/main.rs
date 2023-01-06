@@ -249,8 +249,13 @@ fn terminal_ui<B: Backend>(f: &mut Frame<B>, sys_info: &SysInfo) {
             .as_ref(),
         )
         .split(size);
-    f.render_widget(cpu_graph(sys_info), chunks[0]);
-    f.render_widget(memory_graph(sys_info), chunks[1]);
+
+    let graphs_chunk = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)].as_ref())
+        .split(chunks[1]);
+    f.render_widget(cpu_graph(sys_info), graphs_chunk[0]);
+    f.render_widget(memory_graph(sys_info), graphs_chunk[1]);
 
     // TODO are currently two other chunks allocated
 }
