@@ -22,6 +22,8 @@ use tui::{
     Frame, Terminal,
 };
 
+const INTERVAL_TIME: Duration = Duration::from_millis(300);
+
 struct SysInfo {
     sys: System,
     process_start: Instant,
@@ -303,6 +305,32 @@ fn cpu_ui(sys_info: &SysInfo) -> Paragraph<'_> {
     .alignment(Alignment::Center)
 }
 
+fn storage_total_ui(label: &str, bytes: u64) -> Paragraph<'static> {
+    Paragraph::new(format!("Storage {}: {}", label, ByteSize(bytes)))
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
+        .block(Block::default().title(Span::styled("", Style::default())))
+        .alignment(Alignment::Center)
+}
+
+fn storage_delta_ui(label: &str, bytes: u64) -> Paragraph<'static> {
+    Paragraph::new(format!(
+        "Storage {} /s: {}",
+        label,
+        ByteSize((bytes as u128 * 1000 / INTERVAL_TIME.as_millis()) as u64)
+    ))
+    .style(
+        Style::default()
+            .fg(Color::Cyan)
+            .add_modifier(Modifier::BOLD),
+    )
+    .block(Block::default().title(Span::styled("", Style::default())))
+    .alignment(Alignment::Center)
+}
+
 fn memory_ui(sys_info: &SysInfo) -> Paragraph<'_> {
     Paragraph::new(format!(
         "Memory usage: {}",
@@ -346,7 +374,36 @@ fn terminal_ui<B: Backend>(f: &mut Frame<B>, sys_info: &SysInfo) {
     f.render_widget(cpu_graph(sys_info), graphs_chunk[0]);
     f.render_widget(memory_graph(sys_info), graphs_chunk[1]);
 
-    // TODO storage chunk
+    let disk_usage = sys_info.process_info().disk_usage();
+    let storage_chunk = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)].as_ref())
+        .split(chunks[2]);
+    let storage_read_chunk = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)].as_ref())
+        .split(storage_chunk[0]);
+    f.render_widget(
+        storage_total_ui("read", disk_usage.total_read_bytes),
+        storage_read_chunk[0],
+    );
+    f.render_widget(
+        storage_delta_ui("read", disk_usage.read_bytes),
+        storage_read_chunk[1],
+    );
+
+    let storage_write_chunk = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)].as_ref())
+        .split(storage_chunk[1]);
+    f.render_widget(
+        storage_total_ui("written", disk_usage.total_written_bytes),
+        storage_write_chunk[0],
+    );
+    f.render_widget(
+        storage_delta_ui("written", disk_usage.written_bytes),
+        storage_write_chunk[1],
+    );
 
     let std_chunk = Layout::default()
         .direction(Direction::Horizontal)
@@ -354,8 +411,6 @@ fn terminal_ui<B: Backend>(f: &mut Frame<B>, sys_info: &SysInfo) {
         .split(chunks[3]);
     f.render_widget(stdout_ui(sys_info), std_chunk[0]);
     f.render_widget(stderr_ui(sys_info), std_chunk[1]);
-
-    // TODO are currently two other chunks allocated
 }
 
 #[tokio::main]
@@ -377,13 +432,11 @@ async fn main() -> anyhow::Result<()> {
     //     RefreshKind::new().with_processes(ProcessRefreshKind::new().with_cpu()),
     // );
     // TODO swap to only track relevant/used info (above).
-    let mut sys = System::new_all();
-    // TODO see if refresh is needed.
-    sys.refresh_all();
+    let sys = System::new_all();
 
     let mut terminal = ShadowTerminal::new(sys, child.id() as usize, spawn_start)?;
 
-    let mut interval_timer = tokio::time::interval_at(spawn_start, Duration::from_millis(300));
+    let mut interval_timer = tokio::time::interval_at(spawn_start, INTERVAL_TIME);
     loop {
         tokio::select! {
             _ = interval_timer.tick() => {
@@ -402,14 +455,12 @@ async fn main() -> anyhow::Result<()> {
                 println!("Process exited with status code: {}", status?);
                 break;
             },
-            // TODO swap these to show in better way than just forwarding
             Some(line) = std_out.next() => terminal.push_stdout(line?)?,
             Some(line) = std_err.next() => terminal.push_stderr(line?)?,
         }
     }
 
     // Flush remaining output and give summary
-    // TODO incomplete
     while let Some(line) = std_out.next().await {
         terminal.push_stdout(line?)?;
     }
