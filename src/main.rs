@@ -10,11 +10,11 @@ use crossterm::{
 use futures_lite::io::BufReader;
 use futures_lite::prelude::*;
 use std::io;
-use sysinfo::{Pid, ProcessExt, System, SystemExt};
+use sysinfo::{Pid, Process, ProcessExt, System, SystemExt};
 use tokio::time::Instant;
 use tui::{
     backend::{Backend, CrosstermBackend},
-    layout::{Constraint, Direction, Layout},
+    layout::{Alignment, Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     symbols,
     text::Span,
@@ -32,6 +32,14 @@ struct SysInfo {
     cpu_data: Vec<(f64, f64)>,
     stdout: String,
     stderr: String,
+}
+
+impl SysInfo {
+    fn process_info(&self) -> &Process {
+        self.sys
+            .process(Pid::from(self.pid))
+            .expect("process not spawned correctly")
+    }
 }
 
 struct ShadowTerminal {
@@ -70,15 +78,11 @@ impl ShadowTerminal {
         self.sys_info.sys.refresh_all();
 
         // Print data at intervals
-        let ps_info = self
-            .sys_info
-            .sys
-            .process(Pid::from(self.sys_info.pid))
-            .expect("process not spawned correctly");
         let time_elapsed = self.sys_info.process_start.elapsed().as_secs_f64();
-        self.sys_info
-            .cpu_data
-            .push((time_elapsed, ps_info.cpu_usage() as f64));
+        self.sys_info.cpu_data.push((
+            time_elapsed,
+            self.sys_info.process_info().cpu_usage() as f64,
+        ));
 
         // // TODO fix what is output
         // println!("mem: {}", ByteSize(ps_info.memory()));
@@ -139,9 +143,9 @@ fn cpu_graph(sys_info: &SysInfo) -> Chart<'_> {
             format!("{} s", time_min),
             Style::default().add_modifier(Modifier::BOLD),
         ),
-        Span::raw(format!("{} s", (time_min + time_max) / 2.0)),
+        Span::raw(format!("{:.2} s", (time_min + time_max) / 2.0)),
         Span::styled(
-            format!("{} s", time_max),
+            format!("{:.2} s", time_max),
             Style::default().add_modifier(Modifier::BOLD),
         ),
     ];
@@ -178,7 +182,6 @@ fn cpu_graph(sys_info: &SysInfo) -> Chart<'_> {
         )
         .x_axis(
             Axis::default()
-                .title("Time elapsed")
                 .style(Style::default().fg(Color::Gray))
                 .labels(x_labels)
                 .bounds([time_min, time_max]),
@@ -204,9 +207,9 @@ fn memory_graph(sys_info: &SysInfo) -> Chart<'_> {
             format!("{} s", time_min),
             Style::default().add_modifier(Modifier::BOLD),
         ),
-        Span::raw(format!("{} s", (time_min + time_max) / 2.0)),
+        Span::raw(format!("{:.2} s", (time_min + time_max) / 2.0)),
         Span::styled(
-            format!("{} s", time_max),
+            format!("{:.2} s", time_max),
             Style::default().add_modifier(Modifier::BOLD),
         ),
     ];
@@ -243,7 +246,6 @@ fn memory_graph(sys_info: &SysInfo) -> Chart<'_> {
         )
         .x_axis(
             Axis::default()
-                .title("Time elapsed")
                 .style(Style::default().fg(Color::Gray))
                 .labels(x_labels)
                 .bounds([time_min, time_max]),
@@ -287,19 +289,55 @@ fn stderr_ui(sys_info: &SysInfo) -> Paragraph<'_> {
         .wrap(Wrap { trim: false })
 }
 
+fn cpu_ui(sys_info: &SysInfo) -> Paragraph<'_> {
+    Paragraph::new(format!(
+        "CPU usage: {:.2}%",
+        sys_info.process_info().cpu_usage()
+    ))
+    .style(
+        Style::default()
+            .fg(Color::Cyan)
+            .add_modifier(Modifier::BOLD),
+    )
+    .block(Block::default().title(Span::styled("", Style::default())))
+    .alignment(Alignment::Center)
+}
+
+fn memory_ui(sys_info: &SysInfo) -> Paragraph<'_> {
+    Paragraph::new(format!(
+        "Memory usage: {}",
+        ByteSize(sys_info.process_info().memory())
+    ))
+    .style(
+        Style::default()
+            .fg(Color::Cyan)
+            .add_modifier(Modifier::BOLD),
+    )
+    .block(Block::default().title(Span::styled("", Style::default())))
+    .alignment(Alignment::Center)
+}
+
 fn terminal_ui<B: Backend>(f: &mut Frame<B>, sys_info: &SysInfo) {
     let size = f.size();
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints(
             [
+                Constraint::Length(3),
                 Constraint::Ratio(1, 3),
-                Constraint::Ratio(1, 3),
-                Constraint::Ratio(1, 3),
+                Constraint::Ratio(1, 6),
+                Constraint::Max(50),
             ]
             .as_ref(),
         )
         .split(size);
+
+    let cpu_mem_chunk = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)].as_ref())
+        .split(chunks[0]);
+    f.render_widget(cpu_ui(sys_info), cpu_mem_chunk[0]);
+    f.render_widget(memory_ui(sys_info), cpu_mem_chunk[1]);
 
     let graphs_chunk = Layout::default()
         .direction(Direction::Horizontal)
@@ -308,10 +346,12 @@ fn terminal_ui<B: Backend>(f: &mut Frame<B>, sys_info: &SysInfo) {
     f.render_widget(cpu_graph(sys_info), graphs_chunk[0]);
     f.render_widget(memory_graph(sys_info), graphs_chunk[1]);
 
+    // TODO storage chunk
+
     let std_chunk = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)].as_ref())
-        .split(chunks[2]);
+        .split(chunks[3]);
     f.render_widget(stdout_ui(sys_info), std_chunk[0]);
     f.render_widget(stderr_ui(sys_info), std_chunk[1]);
 
