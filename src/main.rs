@@ -30,8 +30,8 @@ struct SysInfo {
     total_memory: u64,
     num_cpus: usize,
     cpu_data: Vec<(f64, f64)>,
-    std_out: String,
-    std_err: String,
+    stdout: String,
+    stderr: String,
 }
 
 struct ShadowTerminal {
@@ -60,8 +60,8 @@ impl ShadowTerminal {
                 total_memory,
                 num_cpus,
                 cpu_data: Vec::new(),
-                std_out: String::new(),
-                std_err: String::new(),
+                stdout: String::new(),
+                stderr: String::new(),
             },
         })
     }
@@ -241,11 +241,27 @@ fn memory_graph(sys_info: &SysInfo) -> Chart<'_> {
 }
 
 fn stdout_ui(sys_info: &SysInfo) -> Paragraph<'_> {
-    Paragraph::new(sys_info.std_out.as_str())
+    Paragraph::new(sys_info.stdout.as_str())
         .block(
             Block::default()
                 .title(Span::styled(
                     "stdout",
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ))
+                .borders(Borders::ALL),
+        )
+        .alignment(Alignment::Center)
+        .wrap(Wrap { trim: false })
+}
+
+fn stderr_ui(sys_info: &SysInfo) -> Paragraph<'_> {
+    Paragraph::new(sys_info.stderr.as_str())
+        .block(
+            Block::default()
+                .title(Span::styled(
+                    "stderr",
                     Style::default()
                         .fg(Color::Cyan)
                         .add_modifier(Modifier::BOLD),
@@ -282,6 +298,7 @@ fn terminal_ui<B: Backend>(f: &mut Frame<B>, sys_info: &SysInfo) {
         .constraints([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)].as_ref())
         .split(chunks[2]);
     f.render_widget(stdout_ui(sys_info), std_chunk[0]);
+    f.render_widget(stderr_ui(sys_info), std_chunk[1]);
 
     // TODO are currently two other chunks allocated
 }
