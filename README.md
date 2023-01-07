@@ -15,5 +15,5 @@
 	- [ ] Average memory
 	- [ ] Memory delta per second
 	- [ ] Bytes written/read per second
-- [ ] 
+- [ ] Pick up spawned processes to include with output
 - [ ] 

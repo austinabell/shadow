@@ -12,6 +12,9 @@ fn main() {
         file.read_to_end(&mut buffer)
             .expect("Error while reading file");
         println!("read all data from file");
+
+        //* Intentionally leak memory to simulate.
+        Box::leak(junk_data.clone().into_boxed_slice());
     }
 
     eprintln!("finished writes");

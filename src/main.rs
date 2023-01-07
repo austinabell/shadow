@@ -30,6 +30,7 @@ struct SysInfo {
     // TODO this might need to track sub-process ids and be a vec
     pid: usize,
     total_memory: u64,
+    memory_data: Vec<(f64, f64)>,
     num_cpus: usize,
     cpu_data: Vec<(f64, f64)>,
     stdout: String,
@@ -70,6 +71,7 @@ impl ShadowTerminal {
                 total_memory,
                 num_cpus,
                 cpu_data: Vec::new(),
+                memory_data: Vec::new(),
                 stdout: String::new(),
                 stderr: String::new(),
             },
@@ -84,6 +86,10 @@ impl ShadowTerminal {
         self.sys_info.cpu_data.push((
             time_elapsed,
             self.sys_info.process_info().cpu_usage() as f64,
+        ));
+        self.sys_info.memory_data.push((
+            time_elapsed,
+            self.sys_info.process_info().memory() as f64,
         ));
 
         self.draw_ui()
@@ -120,6 +126,35 @@ impl Drop for ShadowTerminal {
         .unwrap();
         self.terminal.show_cursor().unwrap();
     }
+}
+
+fn cpu_ui(sys_info: &SysInfo) -> Paragraph<'_> {
+    Paragraph::new(format!(
+        "CPU usage: {:.2}%",
+        sys_info.process_info().cpu_usage()
+    ))
+    .style(
+        Style::default()
+            .fg(Color::Cyan)
+            .add_modifier(Modifier::BOLD),
+    )
+    .block(Block::default().title(Span::styled("", Style::default())))
+    .alignment(Alignment::Center)
+}
+
+fn memory_ui(sys_info: &SysInfo) -> Paragraph<'_> {
+    Paragraph::new(format!(
+        "Memory usage: {} ({:.2}%)",
+        ByteSize(sys_info.process_info().memory()),
+        sys_info.process_info().memory() as f64 * 100f64 / sys_info.total_memory as f64,
+    ))
+    .style(
+        Style::default()
+            .fg(Color::Cyan)
+            .add_modifier(Modifier::BOLD),
+    )
+    .block(Block::default().title(Span::styled("", Style::default())))
+    .alignment(Alignment::Center)
 }
 
 fn cpu_graph(sys_info: &SysInfo) -> Chart<'_> {
@@ -222,7 +257,7 @@ fn memory_graph(sys_info: &SysInfo) -> Chart<'_> {
         .name("Memory usage")
         .marker(symbols::Marker::Dot)
         .style(Style::default().fg(Color::Cyan))
-        .data(&sys_info.cpu_data)];
+        .data(&sys_info.memory_data)];
 
     Chart::new(datasets)
         .block(
@@ -280,20 +315,6 @@ fn stderr_ui(sys_info: &SysInfo) -> Paragraph<'_> {
         .wrap(Wrap { trim: false })
 }
 
-fn cpu_ui(sys_info: &SysInfo) -> Paragraph<'_> {
-    Paragraph::new(format!(
-        "CPU usage: {:.2}%",
-        sys_info.process_info().cpu_usage()
-    ))
-    .style(
-        Style::default()
-            .fg(Color::Cyan)
-            .add_modifier(Modifier::BOLD),
-    )
-    .block(Block::default().title(Span::styled("", Style::default())))
-    .alignment(Alignment::Center)
-}
-
 fn storage_total_ui(label: &str, bytes: u64) -> Paragraph<'static> {
     Paragraph::new(format!("Storage {}: {}", label, ByteSize(bytes)))
         .style(
@@ -310,20 +331,6 @@ fn storage_delta_ui(label: &str, bytes: u64) -> Paragraph<'static> {
         "Storage {} /s: {}",
         label,
         ByteSize((bytes as u128 * 1000 / INTERVAL_TIME.as_millis()) as u64)
-    ))
-    .style(
-        Style::default()
-            .fg(Color::Cyan)
-            .add_modifier(Modifier::BOLD),
-    )
-    .block(Block::default().title(Span::styled("", Style::default())))
-    .alignment(Alignment::Center)
-}
-
-fn memory_ui(sys_info: &SysInfo) -> Paragraph<'_> {
-    Paragraph::new(format!(
-        "Memory usage: {}",
-        ByteSize(sys_info.process_info().memory())
     ))
     .style(
         Style::default()
