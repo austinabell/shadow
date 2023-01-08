@@ -13,9 +13,9 @@ fn main() -> std::io::Result<()> {
     // Get the path to the temporary file
     let path = file.path().to_path_buf();
 
-	// 1GB of data
+    // 1GB of data
     let data = vec![8; 1_000_000_000];
-    for _ in 0..2 {
+    for _ in 0..3 {
         file.write_all(&data)?;
         file.flush()?;
         println!("wrote data to file");
@@ -28,9 +28,6 @@ fn main() -> std::io::Result<()> {
                 .expect("Error while reading file"),
         );
         println!("read {} bytes from file", buffer.len());
-
-        //* Intentionally leak memory to simulate.
-        black_box(Box::leak(data.clone().into_boxed_slice()));
     }
 
     eprintln!("finished writes");

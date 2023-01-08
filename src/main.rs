@@ -83,7 +83,6 @@ impl ShadowTerminal {
 
         // Print data at intervals
         let time_elapsed = self.sys_info.process_start.elapsed().as_secs_f64();
-        // TODO the data used in graphs does not seem to match the actual values. See if TUI or sys.
         self.sys_info.cpu_data.push((
             time_elapsed,
             self.sys_info.process_info().cpu_usage() as f64,
@@ -191,7 +190,7 @@ fn cpu_graph(sys_info: &SysInfo) -> Chart<'_> {
     ];
     let datasets = vec![Dataset::default()
         .name("CPU % usage")
-        .marker(symbols::Marker::Dot)
+        .marker(symbols::Marker::Braille)
         .style(Style::default().fg(Color::Cyan))
         .data(&sys_info.cpu_data)];
 
@@ -255,7 +254,7 @@ fn memory_graph(sys_info: &SysInfo) -> Chart<'_> {
     ];
     let datasets = vec![Dataset::default()
         .name("Memory usage")
-        .marker(symbols::Marker::Dot)
+        .marker(symbols::Marker::Braille)
         .style(Style::default().fg(Color::Cyan))
         .data(&sys_info.memory_data)];
 
