@@ -83,14 +83,14 @@ impl ShadowTerminal {
 
         // Print data at intervals
         let time_elapsed = self.sys_info.process_start.elapsed().as_secs_f64();
+        // TODO the data used in graphs does not seem to match the actual values. See if TUI or sys.
         self.sys_info.cpu_data.push((
             time_elapsed,
             self.sys_info.process_info().cpu_usage() as f64,
         ));
-        self.sys_info.memory_data.push((
-            time_elapsed,
-            self.sys_info.process_info().memory() as f64,
-        ));
+        self.sys_info
+            .memory_data
+            .push((time_elapsed, self.sys_info.process_info().memory() as f64));
 
         self.draw_ui()
     }
