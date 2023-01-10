@@ -2,6 +2,14 @@
 
 Binary to run a command and track the resource usage within a terminal UI. This is intended to be more ergonomic and convenient than running commands and system monitoring tools independently.
 
+## Installation
+
+```
+cargo install --path .
+```
+
+<!-- TODO crates io installation if published -->
+
 ## Usage
 
 Simply prefix a command with `shadow`, which start the command as a new process and monitor the system information about that process.
@@ -13,6 +21,12 @@ shadow !!
 ```
 
 to re-run using `shadow` to monitor.
+
+Try using shadow with an example binary:
+
+```
+shadow cargo run --example simulate
+```
 
 ## TODO
 
