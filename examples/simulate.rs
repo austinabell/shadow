@@ -1,8 +1,5 @@
-#![feature(bench_black_box)]
-
 use std::{
     fs::OpenOptions,
-    hint::black_box,
     io::{Read, Write},
 };
 
@@ -21,12 +18,10 @@ fn main() -> std::io::Result<()> {
         println!("wrote data to file");
 
         let mut read_file = OpenOptions::new().read(true).open(&path)?;
-        let mut buffer = black_box(Vec::new());
-        black_box(
-            read_file
-                .read_to_end(&mut buffer)
-                .expect("Error while reading file"),
-        );
+        let mut buffer = Vec::new();
+        read_file
+            .read_to_end(&mut buffer)
+            .expect("Error while reading file");
         println!("read {} bytes from file", buffer.len());
     }
 
