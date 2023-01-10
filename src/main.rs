@@ -1,3 +1,5 @@
+#![allow(clippy::uninlined_format_args)]
+
 use std::time::Duration;
 
 use async_process::{Command, Stdio};
